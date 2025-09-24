@@ -1,6 +1,7 @@
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.groq import Groq
-
+from dotenv import load_dotenv
+load_dotenv()
 import os
 
 class Generators:

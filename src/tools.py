@@ -242,3 +242,64 @@ def get_next_available_slots(service, days_ahead: int = 4, slots_per_day: int = 
     return suggestions[:days_ahead * slots_per_day]
 
 
+def available_slots(days_ahead: int = 4, slots_per_day: int = 4):
+    """Return a list of available slots over the next few days."""
+    # Acquire calendar service (may raise if auth expired)
+    try:
+        service = get_calendar_service()
+    except Exception as e:
+        # Surface auth-level problems early and clearly
+        err = str(e)
+        if "invalid_grant" in err or "expired" in err or "revoked" in err:
+            return (
+                "❌ Calendar authentication error: credentials expired or revoked. "
+                "Please re-authenticate (regenerate token.json / refresh tokens)."
+            )
+        return f"❌ Error obtaining calendar service: {e}"
+
+    now = datetime.now(timezone.utc)
+    suggestions = []
+    preferred_hours = [9, 11, 14, 16]  # change to whatever you want
+
+    for day_offset in range(1, days_ahead + 1):
+        day = (now + timedelta(days=day_offset)).date()
+        for hour in preferred_hours[:slots_per_day]:
+            dt_start = datetime(day.year, day.month, day.day, hour, 0, tzinfo=timezone.utc)
+            dt_end = dt_start + timedelta(minutes=60)
+
+            # Skip if in the past or midnight range
+            if dt_start < now or dt_start.hour < 6:
+                continue
+
+            # Check conflicts against session
+            conflict = False
+            for m in session.get("meetings", []):
+                existing_start = datetime.fromisoformat(m["datetime"])
+                if existing_start.tzinfo is None:
+                    existing_start = existing_start.replace(tzinfo=timezone.utc)
+                existing_end = existing_start + timedelta(minutes=m.get("duration_minutes", 60))
+                if dt_start < existing_end and dt_end > existing_start:
+                    conflict = True
+                    break
+
+            if conflict:
+                continue
+
+            # Check conflicts in Google Calendar
+            search_margin = timedelta(minutes=1)
+            events_result = service.events().list(
+                calendarId="primary",
+                timeMin=(dt_start - search_margin).isoformat(),
+                timeMax=(dt_end + search_margin).isoformat(),
+                singleEvents=True,
+                orderBy="startTime"
+            ).execute()
+            items = events_result.get("items", [])
+            if any(True for ev in items):
+                continue
+
+            # If no conflicts -> add suggestion
+            suggestions.append(dt_start.strftime("%Y-%m-%d %H:%M UTC"))
+
+    return suggestions[:days_ahead * slots_per_day]
+

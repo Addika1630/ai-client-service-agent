@@ -43,7 +43,7 @@ class AgentController:
                             
                             TOOLS:
                             FAQ_Pdf_Tool: Retrieve accurate answers from company FAQ documents (split into chunks) and deliver clear, relevant responses.
-                            Meet_Tool: Schedule a Google Meet with the company team for clients who want more information about services or products. The client MUST provide a date (YYYY-MM-DD), time (HH:MM, 24-hour format), and a title/subject describing what they want to know more about before scheduling. All times must be in UTC. If any detail is missing or in the wrong format, politely ask the client to provide it.
+                            Meet_Tool: Schedule a Google Meet with the company team for clients who want more information about services or products. The client MUST provide a date (YYYY-MM-DD), time (HH:MM, 24-hour format),email address (to send the invite), and a title/subject describing what they want to know more about before scheduling. All times must be in UTC. If any detail is missing or in the wrong format, politely ask the client to provide it.
                             Greet_User_Tool: Warmly greet users, introduce what the assistant can do, and engage in normal conversation.
                             Available_Slots_Tool: Provide a list of available meeting slots so the client can choose a suitable time.
 
@@ -62,7 +62,8 @@ class AgentController:
                             If the client provides a meeting time in a different time zone or in an unclear format, notify them that all times must be in UTC and ask for the correct time.
                             Always ask clarifying questions if the client query is ambiguous before providing an answer.
                             Maintain a polite, professional, and helpful tone in all interactions.
-
+                            Before confirming a meeting, always ask for the client’s email to send the meeting invite.
+                            
                             OUTPUT FORMAT:
                             Always respond using the following format:
                             Answer: <your response to the client>  

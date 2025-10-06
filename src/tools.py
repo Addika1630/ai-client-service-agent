@@ -32,15 +32,16 @@ def greet_user_and_ask_name() -> str:
 # session is expected to be a module-level dict (already present in your code)
 # session = dict()
 
-def schedule_google_meet(date: str, time: str, subject: str, duration_minutes: int = 60) -> str:
+def schedule_google_meet(date: str, time: str, subject: str, email: str, duration_minutes: int = 60) -> str:
     """
     Schedule a Google Meet meeting via Google Calendar.
     - Prevents double-booking (checks both local session and Google Calendar).
     - Avoids scheduling during midnight hours (00:00–06:00 UTC).
+    - Requires client email and sends an invite.
     - Returns a user-friendly status string.
     """
 
-     # Acquire calendar service (may raise if auth expired)
+    # Acquire calendar service (may raise if auth expired)
     try:
         service = get_calendar_service()
     except Exception as e:
@@ -53,8 +54,9 @@ def schedule_google_meet(date: str, time: str, subject: str, duration_minutes: i
             )
         return f"❌ Error obtaining calendar service: {e}"
 
-    if not date or not time or not subject:
-        return "⚠️ Please provide the date (YYYY-MM-DD), time (HH:MM), and subject to schedule a meeting."
+    # Require all fields including email
+    if not date or not time or not subject or not email:
+        return "⚠️ Please provide the date (YYYY-MM-DD), time (HH:MM UTC), subject, and your email address to schedule a meeting."
 
     # Helper to parse RFC3339 / Google dateTime strings robustly
     def _parse_rfc3339(dt_str):
@@ -78,6 +80,7 @@ def schedule_google_meet(date: str, time: str, subject: str, duration_minutes: i
                 "Here are some available slots you can pick:\n" +
                 "\n".join(f"- {slot}" for slot in available)
             )
+
         # Disallow midnight hours (00:00 - 06:00 UTC)
         if dt_start.hour < 6:
             available = get_next_available_slots(service)
@@ -108,9 +111,7 @@ def schedule_google_meet(date: str, time: str, subject: str, duration_minutes: i
                     "\n".join(f"- {slot}" for slot in available)
                 )
 
-
         # Query Google Calendar for potential conflicts.
-        # Use a small search margin to catch events that start earlier but end during requested slot.
         search_margin = timedelta(hours=1)
         time_min = (dt_start - search_margin).isoformat()
         time_max = (dt_end + search_margin).isoformat()
@@ -125,7 +126,6 @@ def schedule_google_meet(date: str, time: str, subject: str, duration_minutes: i
 
         items = events_result.get("items", [])
         for ev in items:
-            # start and end may be 'dateTime' (timed) or 'date' (all-day)
             start_field = ev.get("start", {})
             end_field = ev.get("end", {})
 
@@ -150,11 +150,12 @@ def schedule_google_meet(date: str, time: str, subject: str, duration_minutes: i
                     "\n".join(f"- {slot}" for slot in available)
                 )
 
-        # No conflicts -> create the event with conferenceData to get a Meet link
+        # ✅ No conflicts -> create the event with conferenceData and attendee email
         event_body = {
             "summary": subject,
             "start": {"dateTime": dt_start.isoformat(), "timeZone": "UTC"},
             "end": {"dateTime": dt_end.isoformat(), "timeZone": "UTC"},
+            "attendees": [{"email": email}],  # send invite to client
             "conferenceData": {
                 "createRequest": {
                     "requestId": f"meet-{int(datetime.now().timestamp())}",
@@ -166,7 +167,8 @@ def schedule_google_meet(date: str, time: str, subject: str, duration_minutes: i
         event = service.events().insert(
             calendarId="primary",
             body=event_body,
-            conferenceDataVersion=1
+            conferenceDataVersion=1,
+            sendUpdates="all"  # ensures email invite is sent
         ).execute()
 
         # Safely extract Meet link
@@ -178,20 +180,21 @@ def schedule_google_meet(date: str, time: str, subject: str, duration_minutes: i
             "subject": subject,
             "datetime": dt_start.isoformat(),
             "link": meet_link,
-            "duration_minutes": duration_minutes
+            "duration_minutes": duration_minutes,
+            "email": email
         })
 
-        return f"✅ Meeting '{subject}' scheduled!\n📅 {dt_start.strftime('%Y-%m-%d %H:%M')} UTC\n🔗 Meet link: {meet_link}"
+        return f"✅ Meeting '{subject}' scheduled!\n📅 {dt_start.strftime('%Y-%m-%d %H:%M')} UTC\n📧 Invite sent to {email}\n🔗 Meet link: {meet_link}"
 
     except Exception as e:
         err_str = str(e)
-        # If auth problem surfaces here (from Google API library), provide a helpful hint
         if "invalid_grant" in err_str or "expired" in err_str or "revoked" in err_str:
             return (
                 "❌ Authentication error while scheduling: calendar credentials expired or revoked. "
                 "Please re-authenticate."
             )
         return f"❌ Error scheduling meeting: {e}"
+
 
 def get_next_available_slots(service, days_ahead: int = 4, slots_per_day: int = 4):
     """Return a list of available slots over the next few days."""
@@ -261,7 +264,7 @@ def available_slots(days_ahead: int = 4, slots_per_day: int = 4):
     suggestions = []
     preferred_hours = [9, 11, 14, 16]  # change to whatever you want
 
-    for day_offset in range(1, days_ahead + 1):
+    for day_offset in range(0, days_ahead):
         day = (now + timedelta(days=day_offset)).date()
         for hour in preferred_hours[:slots_per_day]:
             dt_start = datetime(day.year, day.month, day.day, hour, 0, tzinfo=timezone.utc)

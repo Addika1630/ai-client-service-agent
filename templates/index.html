@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Client Service Agent | IDT</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --idt-primary: #1a365d;
+            --idt-secondary: #2d3748;
+            --idt-accent: #3182ce;
+            --idt-light: #e2e8f0;
+            --idt-success: #38a169;
+            --idt-warning: #d69e2e;
+            --idt-error: #e53e3e;
+            --idt-white: #ffffff;
+            --idt-gray: #718096;
+            --idt-dark: #2d3748;
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: var(--idt-dark);
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 440px;
+            background: var(--idt-white);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 700px;
+            position: relative;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, var(--idt-primary) 0%, var(--idt-secondary) 100%);
+            color: var(--idt-white);
+            padding: 24px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+        }
+
+        .header-content {
+            flex: 1;
+        }
+
+        .header-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .chat-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            letter-spacing: -0.5px;
+        }
+
+        .chat-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            background: var(--idt-success);
+            border-radius: 50%;
+            margin-left: auto;
+            box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.2);
+            animation: pulse 2s infinite;
+        }
+
+        .messages-container {
+            flex: 1;
+            padding: 24px 20px;
+            overflow-y: auto;
+            background: var(--idt-light);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background-image: 
+                radial-gradient(circle at 25px 25px, rgba(49, 130, 206, 0.1) 2px, transparent 0),
+                radial-gradient(circle at 75px 75px, rgba(49, 130, 206, 0.1) 2px, transparent 0);
+            background-size: 100px 100px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 16px 20px;
+            border-radius: 20px;
+            line-height: 1.5;
+            position: relative;
+            animation: fadeInUp 0.4s ease-out;
+            box-shadow: var(--shadow-md);
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, var(--idt-primary) 0%, var(--idt-accent) 100%);
+            color: var(--idt-white);
+            margin-left: auto;
+            border-bottom-right-radius: 6px;
+        }
+
+        .agent-message {
+            background: var(--idt-white);
+            color: var(--idt-dark);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-bottom-left-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .message-time {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 6px;
+            display: block;
+            font-weight: 400;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--idt-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+
+        .message-wrapper {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .typing-indicator {
+            background: var(--idt-white);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 20px;
+            padding: 16px 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            max-width: 90px;
+            animation: fadeIn 0.3s ease-out;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--idt-gray);
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        .input-container {
+            padding: 20px;
+            background: var(--idt-white);
+            border-top: 1px solid rgba(226, 232, 240, 0.8);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            position: relative;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 16px 20px;
+            border: 2px solid rgba(226, 232, 240, 0.8);
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+            background: var(--idt-light);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .message-input:focus {
+            border-color: var(--idt-accent);
+            background: var(--idt-white);
+            box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+        }
+
+        .message-input::placeholder {
+            color: var(--idt-gray);
+        }
+
+        .send-button {
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, var(--idt-primary) 0%, var(--idt-accent) 100%);
+            color: var(--idt-white);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(26, 54, 93, 0.3);
+        }
+
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(26, 54, 93, 0.4);
+        }
+
+        .send-button:active {
+            transform: translateY(0);
+        }
+
+        .send-button:disabled {
+            background: var(--idt-gray);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .quick-replies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: var(--radius-md);
+            backdrop-filter: blur(10px);
+        }
+
+        .quick-reply {
+            background: var(--idt-white);
+            border: 2px solid var(--idt-light);
+            border-radius: 20px;
+            padding: 10px 18px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--idt-dark);
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .quick-reply:hover {
+            background: var(--idt-primary);
+            color: var(--idt-white);
+            border-color: var(--idt-primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(26, 54, 93, 0.2);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: var(--radius-md);
+            backdrop-filter: blur(10px);
+        }
+
+        .feature-card {
+            background: var(--idt-white);
+            border: 1px solid var(--idt-light);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            text-align: center;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: var(--idt-primary);
+            background: linear-gradient(135deg, var(--idt-primary) 0%, var(--idt-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(49, 130, 206, 0.1) 0%, rgba(26, 54, 93, 0.1) 100%);
+            border-radius: var(--radius-md);
+            margin-bottom: 20px;
+        }
+
+        .welcome-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--idt-primary);
+            margin-bottom: 8px;
+        }
+
+        .welcome-text {
+            font-size: 14px;
+            color: var(--idt-gray);
+            line-height: 1.5;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.2); }
+            50% { box-shadow: 0 0 0 6px rgba(56, 161, 105, 0.4); }
+        }
+
+        @media (max-width: 480px) {
+            .chat-container {
+                height: 100vh;
+                max-width: none;
+                border-radius: 0;
+            }
+            
+            body {
+                padding: 0;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .message {
+                max-width: 85%;
+            }
+        }
+
+
+        .message-input:focus-visible,
+        .send-button:focus-visible,
+        .quick-reply:focus-visible {
+            outline: 2px solid var(--idt-accent);
+            outline-offset: 2px;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .messages-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .messages-container::-webkit-scrollbar-track {
+            background: rgba(226, 232, 240, 0.5);
+            border-radius: 3px;
+        }
+
+        .messages-container::-webkit-scrollbar-thumb {
+            background: var(--idt-accent);
+            border-radius: 3px;
+        }
+
+        .messages-container::-webkit-scrollbar-thumb:hover {
+            background: var(--idt-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container" role="dialog" aria-label="AI Client Service Agent">
+        <div class="chat-header">
+            <div class="header-icon">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="header-content">
+                <h1 class="chat-title">AI Client Service Agent</h1>
+                <p class="chat-subtitle">Powered by IDT • 24/7 Support</p>
+            </div>
+            <div class="status-indicator" aria-label="Online"></div>
+        </div>
+
+        <div class="messages-container" id="messages">
+            <div class="welcome-message">
+                <h2 class="welcome-title">Welcome to IDT Support</h2>
+                <p class="welcome-text">I'm your AI assistant here to help with any questions about our services, scheduling, or technical support.</p>
+            </div>
+
+            <div class="message-wrapper">
+                <div class="message-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="message agent-message">
+                    <p>Hello! I'm your AI Client Service Agent. How can I assist you today?</p>
+                    <span class="message-time">Just now</span>
+                </div>
+            </div>
+
+            <div class="quick-replies">
+                <button class="quick-reply" onclick="sendQuickReply('What services does IDT offer?')">
+                    <i class="fas fa-cog"></i> Services
+                </button>
+                <button class="quick-reply" onclick="sendQuickReply('I need help with my account')">
+                    <i class="fas fa-user"></i> Account Help
+                </button>
+                <button class="quick-reply" onclick="sendQuickReply('Schedule a meeting with your team')">
+                    <i class="fas fa-calendar"></i> Schedule Meeting
+                </button>
+                <button class="quick-reply" onclick="sendQuickReply('Pricing and packages information')">
+                    <i class="fas fa-dollar-sign"></i> Pricing
+                </button>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-clock"></i></div>
+                    <p>24/7 Availability</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-calendar-check"></i></div>
+                    <p>Meeting Scheduling</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-brain"></i></div>
+                    <p>AI-Powered</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
+                    <p>Secure & Private</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <input 
+                type="text" 
+                class="message-input" 
+                id="user-input" 
+                placeholder="Type your message here..." 
+                aria-label="Type your message"
+                onkeypress="handleKeyPress(event)"
+            >
+            <button class="send-button" id="send-button" aria-label="Send message">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const messagesContainer = document.getElementById('messages');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+
+       
+        const responses = {
+            'greeting': 'Hello! Welcome to IDT. I\'m your AI Client Service Agent. How can I assist you today with our digital transformation services?',
+            'services': 'IDT offers comprehensive digital transformation services including: AI solutions, cloud computing, cybersecurity, data analytics, and custom software development. Which area are you most interested in?',
+            'account': 'For account assistance, I can help with password reset, account settings, or connect you with our dedicated support team. Please tell me more about your specific issue.',
+            'schedule': 'I\'d be happy to schedule a meeting with our team! Please let me know your preferred date and time, and I\'ll check availability. You can also specify if you need a particular specialist.',
+            'pricing': 'Our pricing is tailored to each client\'s specific needs. I can provide general information about our service packages or connect you with our sales team for a detailed quote. What type of service are you considering?',
+            'contact': 'You can reach our support team at support@idt.com or call us at +1 (555) 123-4567. Our business hours are Monday-Friday, 9 AM to 6 PM EST. For urgent matters, we offer 24/7 emergency support.',
+            'technology': 'IDT specializes in cutting-edge technologies including artificial intelligence, machine learning, blockchain, IoT, and cloud solutions. We help businesses transform digitally with innovative tech solutions.',
+            'help': 'I\'m here to help! You can ask me about our services, schedule meetings, get technical support, request information, or discuss your specific business needs. What would you like to know?',
+            'thanks': 'You\'re very welcome! It\'s my pleasure to assist you. Is there anything else about IDT\'s services that you\'d like to know?',
+            'goodbye': 'Thank you for chatting with IDT! We appreciate your business and look forward to helping you with your digital transformation journey. Have a wonderful day!',
+            'default': 'I understand you\'re looking for information about IDT. Could you please provide more details so I can assist you better? You can ask about our services, schedule a consultation, or request specific information.'
+        };
+
+        function getCurrentTime() {
+            return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function addMessage(message, isUser = false) {
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = 'message-wrapper';
+            
+            if (isUser) {
+                messageWrapper.innerHTML = `
+                    <div class="message user-message">
+                        <p>${message}</p>
+                        <span class="message-time">${getCurrentTime()}</span>
+                    </div>
+                    <div class="message-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                `;
+            } else {
+                messageWrapper.innerHTML = `
+                    <div class="message-avatar">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="message agent-message">
+                        <p>${message}</p>
+                        <span class="message-time">${getCurrentTime()}</span>
+                    </div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageWrapper);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message-wrapper';
+            typingDiv.innerHTML = `
+                <div class="message-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="typing-indicator">
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                </div>
+            `;
+            messagesContainer.appendChild(typingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            return typingDiv;
+        }
+
+        function hideTypingIndicator(typingDiv) {
+            if (typingDiv && typingDiv.parentNode) {
+                typingDiv.parentNode.removeChild(typingDiv);
+            }
+        }
+
+        
+        async function sendMessage() {
+                const message = userInput.value.trim();
+                if (!message) return;
+
+                addMessage(message, true);
+                userInput.value = '';
+                sendButton.disabled = true;
+
+                const typingIndicator = showTypingIndicator();
+
+                try {
+                    // Call your Flask backend
+                    const res = await fetch('/ask', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: message })
+                    });
+                    const data = await res.json();
+                    hideTypingIndicator(typingIndicator);
+                    addMessage(data.response); // Add agent response
+                } catch (error) {
+                    hideTypingIndicator(typingIndicator);
+                    addMessage("Sorry, something went wrong.", false);
+                    console.error(error);
+                } finally {
+                    sendButton.disabled = false;
+                    userInput.focus();
+                }
+            }
+
+        function sendQuickReply(message) {
+            userInput.value = message;
+            sendMessage();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('input', () => {
+            sendButton.disabled = !userInput.value.trim();
+        });
+
+        
+        window.addEventListener('load', () => {
+            userInput.focus();
+        });
+
+     
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.feature-card, .quick-reply').forEach((element, index) => {
+                element.style.animationDelay = `${index * 0.1}s`;
+            });
+        });
+    </script>
+</body>
+</html>
+

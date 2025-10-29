@@ -513,6 +513,8 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
     <script>
         const messagesContainer = document.getElementById('messages');
         const userInput = document.getElementById('user-input');
@@ -557,7 +559,7 @@
                         <i class="fas fa-robot"></i>
                     </div>
                     <div class="message agent-message">
-                        <p>${message}</p>
+                        ${marked.parse(message)}  <!-- Converts Markdown to HTML -->
                         <span class="message-time">${getCurrentTime()}</span>
                     </div>
                 `;

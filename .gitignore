@@ -1,4 +1,8 @@
 venv
 token.json
 credentials.json
+token_sales.json
+token_technical.json
+credentials_sales.json
+credentials_technical.json
 __pycache__/

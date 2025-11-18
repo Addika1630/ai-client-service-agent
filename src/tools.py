@@ -1,10 +1,12 @@
 # from dotenv import load_dotenv
 # load_dotenv()
+import os
 import math
 from datetime import datetime, timedelta
 from calendar_service import get_calendar_service
 from datetime import datetime, timedelta, timezone
 from calendar_service import get_calendar_service
+from calendar_service import get_calendar_service_for_team
 session = dict()
 
 def greet_user_and_ask_name() -> str:
@@ -32,7 +34,7 @@ def greet_user_and_ask_name() -> str:
 # session is expected to be a module-level dict (already present in your code)
 # session = dict()
 
-def schedule_google_meet(date: str, time: str, subject: str, email: str, duration_minutes: int = 60) -> str:
+def schedule_google_meet(date: str, time: str, subject: str, email: str, duration_minutes: int = 60, team: str = "technical") -> str:
     """
     Schedule a Google Meet meeting via Google Calendar.
     - Prevents double-booking (checks both local session and Google Calendar).
@@ -41,9 +43,17 @@ def schedule_google_meet(date: str, time: str, subject: str, email: str, duratio
     - Returns a user-friendly status string.
     """
 
-    # Acquire calendar service (may raise if auth expired)
+    # Normalize and resolve calendar target
+    team = (team or "technical").strip().lower()
+    if team not in {"technical", "sales"}:
+        team = "technical"
+
+    calendar_id = os.getenv(f"CAL_{team.upper()}_CALENDAR_ID", "primary")
+    team_title = team.capitalize()
+
+    # Acquire calendar service for team (may raise if auth expired)
     try:
-        service = get_calendar_service()
+        service = get_calendar_service_for_team(team)
     except Exception as e:
         # Surface auth-level problems early and clearly
         err = str(e)
@@ -74,7 +84,7 @@ def schedule_google_meet(date: str, time: str, subject: str, email: str, duratio
 
         # ⛔ Disallow scheduling in the past
         if dt_start < datetime.now(timezone.utc):
-            available = get_next_available_slots(service)
+            available = get_next_available_slots(service, calendar_id)
             return (
                 "⚠️ Please use a valid date and time. Meetings cannot be scheduled in the past.\n\n"
                 "Here are some available slots you can pick:\n" +
@@ -83,7 +93,7 @@ def schedule_google_meet(date: str, time: str, subject: str, email: str, duratio
 
         # Disallow midnight hours (00:00 - 06:00 UTC)
         if dt_start.hour < 6:
-            available = get_next_available_slots(service)
+            available = get_next_available_slots(service, calendar_id)
             return (
                 "⚠️ Meetings cannot be scheduled between 00:00 and 06:00 UTC.\n\n"
                 "Here are some available slots:\n" +
@@ -92,6 +102,8 @@ def schedule_google_meet(date: str, time: str, subject: str, email: str, duratio
             
         # Check local in-memory session for overlap (use proper interval overlap check)
         for m in session.get("meetings", []):
+            if m.get("team") != team:
+                continue
             try:
                 existing_start = datetime.fromisoformat(m["datetime"])
                 if existing_start.tzinfo is None:
@@ -103,12 +115,12 @@ def schedule_google_meet(date: str, time: str, subject: str, email: str, duratio
             existing_end = existing_start + timedelta(minutes=existing_duration)
             # overlap check: new_start < existing_end and new_end > existing_start
             if dt_start < existing_end and dt_end > existing_start:
-                available = get_next_available_slots(service)
+                available = get_next_available_slots(service, calendar_id)
                 return (
-                    f"⚠️ That time slot is already booked ({existing_start.strftime('%Y-%m-%d %H:%M')} - "
-                    f"{existing_end.strftime('%H:%M')} UTC).\n\n"
-                    "Here are some available slots:\n" +
-                    "\n".join(f"- {slot}" for slot in available)
+                    f"Unfortunately, the requested time slot ({dt_start.strftime('%Y-%m-%d %H:%M')} UTC) is already booked. "
+                    f"However, I can offer you a list of available meeting slots for the {team_title} team:\n"
+                    + "\n".join(available) +
+                    "\nPlease choose an available time slot, and I will be happy to schedule a meeting for you."
                 )
 
         # Query Google Calendar for potential conflicts.
@@ -117,7 +129,7 @@ def schedule_google_meet(date: str, time: str, subject: str, email: str, duratio
         time_max = (dt_end + search_margin).isoformat()
 
         events_result = service.events().list(
-            calendarId="primary",
+            calendarId=calendar_id,
             timeMin=time_min,
             timeMax=time_max,
             singleEvents=True,
@@ -142,12 +154,12 @@ def schedule_google_meet(date: str, time: str, subject: str, email: str, duratio
 
             # overlap check
             if dt_start < existing_end and dt_end > existing_start:
-                available = get_next_available_slots(service)
+                available = get_next_available_slots(service, calendar_id)
                 return (
-                    f"⚠️ That time slot is already booked ({existing_start.strftime('%Y-%m-%d %H:%M')} - "
-                    f"{existing_end.strftime('%H:%M')} UTC).\n\n"
-                    "Here are some available slots:\n" +
-                    "\n".join(f"- {slot}" for slot in available)
+                    f"Unfortunately, the requested time slot ({dt_start.strftime('%Y-%m-%d %H:%M')} UTC) is already booked. "
+                    f"However, I can offer you a list of available meeting slots for the {team_title} team:\n"
+                    + "\n".join(available) +
+                    "\nPlease choose an available time slot, and I will be happy to schedule a meeting for you."
                 )
 
         # ✅ No conflicts -> create the event with conferenceData and attendee email
@@ -165,7 +177,7 @@ def schedule_google_meet(date: str, time: str, subject: str, email: str, duratio
         }
 
         event = service.events().insert(
-            calendarId="primary",
+            calendarId=calendar_id,
             body=event_body,
             conferenceDataVersion=1,
             sendUpdates="all"  # ensures email invite is sent
@@ -181,7 +193,8 @@ def schedule_google_meet(date: str, time: str, subject: str, email: str, duratio
             "datetime": dt_start.isoformat(),
             "link": meet_link,
             "duration_minutes": duration_minutes,
-            "email": email
+            "email": email,
+            "team": team
         })
 
         return f"✅ Meeting '{subject}' scheduled!\n📅 {dt_start.strftime('%Y-%m-%d %H:%M')} UTC\n📧 Invite sent to {email}\n🔗 Meet link: {meet_link}"
@@ -196,8 +209,8 @@ def schedule_google_meet(date: str, time: str, subject: str, email: str, duratio
         return f"❌ Error scheduling meeting: {e}"
 
 
-def get_next_available_slots(service, days_ahead: int = 4, slots_per_day: int = 4):
-    """Return a list of available slots over the next few days."""
+def get_next_available_slots(service, calendar_id: str, days_ahead: int = 4, slots_per_day: int = 4):
+    """Return a list of available slots over the next few days for the given calendar_id."""
     now = datetime.now(timezone.utc)
     suggestions = []
     preferred_hours = [9, 11, 14, 16]  # change to whatever you want
@@ -212,24 +225,10 @@ def get_next_available_slots(service, days_ahead: int = 4, slots_per_day: int = 
             if dt_start < now or dt_start.hour < 6:
                 continue
 
-            # Check conflicts against session
-            conflict = False
-            for m in session.get("meetings", []):
-                existing_start = datetime.fromisoformat(m["datetime"])
-                if existing_start.tzinfo is None:
-                    existing_start = existing_start.replace(tzinfo=timezone.utc)
-                existing_end = existing_start + timedelta(minutes=m.get("duration_minutes", 60))
-                if dt_start < existing_end and dt_end > existing_start:
-                    conflict = True
-                    break
-
-            if conflict:
-                continue
-
             # Check conflicts in Google Calendar
             search_margin = timedelta(minutes=1)
             events_result = service.events().list(
-                calendarId="primary",
+                calendarId=calendar_id,
                 timeMin=(dt_start - search_margin).isoformat(),
                 timeMax=(dt_end + search_margin).isoformat(),
                 singleEvents=True,
@@ -245,11 +244,14 @@ def get_next_available_slots(service, days_ahead: int = 4, slots_per_day: int = 
     return suggestions[:days_ahead * slots_per_day]
 
 
-def available_slots(days_ahead: int = 4, slots_per_day: int = 4):
+def available_slots(days_ahead: int = 4, slots_per_day: int = 4, team: str = "technical"):
     """Return a list of available slots over the next few days."""
     # Acquire calendar service (may raise if auth expired)
     try:
-        service = get_calendar_service()
+        team = (team or "technical").strip().lower()
+        if team not in {"technical", "sales"}:
+            team = "technical"
+        service = get_calendar_service_for_team(team)
     except Exception as e:
         # Surface auth-level problems early and clearly
         err = str(e)
@@ -290,8 +292,9 @@ def available_slots(days_ahead: int = 4, slots_per_day: int = 4):
 
             # Check conflicts in Google Calendar
             search_margin = timedelta(minutes=1)
+            calendar_id = os.getenv(f"CAL_{team.upper()}_CALENDAR_ID", "primary")
             events_result = service.events().list(
-                calendarId="primary",
+                calendarId=calendar_id,
                 timeMin=(dt_start - search_margin).isoformat(),
                 timeMax=(dt_end + search_margin).isoformat(),
                 singleEvents=True,

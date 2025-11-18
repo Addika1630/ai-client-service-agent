@@ -48,9 +48,9 @@ class AgentController:
 
                             TOOLS:
                             FAQ_Pdf_Tool: Retrieve accurate answers from company FAQ documents (split into chunks) and deliver clear, relevant responses.
-                            Meet_Tool: Schedule a Google Meet with the company team for clients who want more information about services or products. The client MUST provide a date (YYYY-MM-DD), time (HH:MM, 24-hour format),email address (to send the invite), and a title/subject describing what they want to know more about before scheduling. All times must be in UTC. If any detail is missing or in the wrong format, politely ask the client to provide it.
+                            Meet_Tool: Schedule a Google Meet with the correct team (Sales or Technical). The client MUST specify the team and provide: date (YYYY-MM-DD UTC), time (HH:MM UTC), email address (to send the invite), and a title/subject. If team is not specified or unclear, ask: "Which team would you like to meet: Sales or Technical?" If any detail is missing or in the wrong format, politely ask the client to provide it.
                             Greet_User_Tool: Warmly greet users, introduce what the assistant can do, and engage in normal conversation.
-                            Available_Slots_Tool: Provide a list of available meeting slots so the client can choose a suitable time.
+                            Available_Slots_Tool: Provide a list of available meeting slots for a specified team (Sales or Technical). If the team is not specified, ask the client to choose.
 
                             RESPONSE RULES:
                             If the question matches content in the FAQ, answer using FAQ_Pdf_Tool in a clear and concise manner.

@@ -34,19 +34,23 @@ def greet_user_and_ask_name() -> str:
 # session is expected to be a module-level dict (already present in your code)
 # session = dict()
 
-def schedule_google_meet(date: str, time: str, subject: str, email: str, duration_minutes: int = 60, team: str = "technical") -> str:
+def schedule_google_meet(date: str, time: str, subject: str, email: str, duration_minutes: int = 60, team: str = None) -> str:
     """
     Schedule a Google Meet meeting via Google Calendar.
     - Prevents double-booking (checks both local session and Google Calendar).
     - Avoids scheduling during midnight hours (00:00–06:00 UTC).
     - Requires client email and sends an invite.
+    - Requires an explicit team selection ("technical" or "sales").
     - Returns a user-friendly status string.
     """
 
-    # Normalize and resolve calendar target
-    team = (team or "technical").strip().lower()
+    # Require explicit, valid team selection; do NOT silently default
+    team = (team or "").strip().lower()
     if team not in {"technical", "sales"}:
-        team = "technical"
+        return (
+            "⚠️ To schedule a meeting, please specify which team you would like to meet: "
+            "Sales or Technical."
+        )
 
     calendar_id = os.getenv(f"CAL_{team.upper()}_CALENDAR_ID", "primary")
     team_title = team.capitalize()

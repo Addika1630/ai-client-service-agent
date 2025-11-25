@@ -6,3 +6,4 @@ token_technical.json
 credentials_sales.json
 credentials_technical.json
 __pycache__/
+.env

@@ -7,6 +7,10 @@ from calendar_service import get_calendar_service
 from datetime import datetime, timedelta, timezone
 from calendar_service import get_calendar_service
 from calendar_service import get_calendar_service_for_team
+import smtplib
+import os
+import uuid
+from email.mime.text import MIMEText
 session = dict()
 
 def greet_user_and_ask_name() -> str:
@@ -248,13 +252,16 @@ def get_next_available_slots(service, calendar_id: str, days_ahead: int = 4, slo
     return suggestions[:days_ahead * slots_per_day]
 
 
-def available_slots(days_ahead: int = 4, slots_per_day: int = 4, team: str = "technical"):
+def available_slots(days_ahead: int = 4, slots_per_day: int = 4, team: str = None):
     """Return a list of available slots over the next few days."""
     # Acquire calendar service (may raise if auth expired)
     try:
-        team = (team or "technical").strip().lower()
+        team = (team or "").strip().lower()
         if team not in {"technical", "sales"}:
-            team = "technical"
+            return (
+                "⚠️ To show available meeting slots, please specify which team you would like to meet: "
+                "Sales or Technical."
+            )
         service = get_calendar_service_for_team(team)
     except Exception as e:
         # Surface auth-level problems early and clearly
@@ -312,4 +319,106 @@ def available_slots(days_ahead: int = 4, slots_per_day: int = 4, team: str = "te
             suggestions.append(dt_start.strftime("%Y-%m-%d %H:%M UTC"))
 
     return suggestions[:days_ahead * slots_per_day]
+
+# Global variable to track support request state
+support_request_state = {}
+
+
+def smart_support_router(user_message: str, client_email: str = None, client_name: str = None) -> str:
+    """
+    Simple support router that sends email when all information is provided.
+    """
+    
+    # Extract email from message if not provided
+    if not client_email:
+        client_email = extract_email_from_text(user_message)
+
+    cleaned_message = user_message.strip()
+
+    # If we have email and a substantial message, send email immediately
+    if client_email and len(cleaned_message) > 40:
+        return send_support_email_direct(
+            user_message=cleaned_message,
+            client_email=client_email,
+            client_name=client_name
+        )
+    
+    # If we have email but short message, ask for a brief but clear description
+    if client_email:
+        return (
+            "Thank you. Before I connect you to our human support team, "
+            "please briefly describe the issue (1–3 sentences) so they understand your request."
+        )
+    
+    # If no email detected, ask for email
+    return (
+        "I'd be happy to connect you with our support team. "
+        "Please provide the email address where they can contact you."
+    )
+
+def extract_email_from_text(text: str) -> str:
+    """Extract email address from text"""
+    import re
+    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    matches = re.findall(email_pattern, text)
+    return matches[0] if matches else None
+
+def send_support_email_direct(user_message: str, client_email: str, client_name: str = None) -> str:
+    """
+    Direct function to send email to support team.
+    """
+    
+    SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "addisu05mulat@gmail.com")
+    SMTP_USERNAME = os.getenv("SMTP_USERNAME", "addisu05mulat@gmail.com")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+    SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
+
+    if not SMTP_USERNAME or not SMTP_PASSWORD:
+        return (
+            "❌ Email configuration error: SMTP credentials are not set correctly. "
+            "Please contact the system administrator."
+        )
+
+    timestamp = datetime.now().strftime("%Y-%m-%d")
+    unique_id = uuid.uuid4().hex[:6].upper()
+    subject = f"Support Request #{unique_id} - {timestamp}"
+    client_display_name = client_name or client_email
+
+    body = f"""New Client Support Request
+
+Client: {client_display_name}
+Email: {client_email}
+Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+Request ID: {unique_id}
+
+Client's Message:
+{user_message}
+
+---
+Please reply directly to {client_email}.
+"""
+
+    try:
+        msg = MIMEText(body)
+        msg["Subject"] = subject
+        msg["To"] = SUPPORT_EMAIL
+        msg["From"] = SMTP_USERNAME
+        msg["Reply-To"] = client_email
+
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=30) as server:
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.sendmail(SMTP_USERNAME, [SUPPORT_EMAIL], msg.as_string())
+
+        return (
+            "✅ I've sent your request to our support team.\n\n"
+            "**What happens next:**\n"
+            f"- Our support team will contact you directly at **{client_email}**\n"
+            f"- **Reference ID:** {unique_id}\n\n"
+            "Thank you for reaching out! Our team will be in touch soon."
+        )
+
+    except Exception as e:
+        return f"❌ Sorry, I encountered an error while sending your request: {e}"
+
 

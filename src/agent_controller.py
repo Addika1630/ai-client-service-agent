@@ -16,7 +16,14 @@ meet_tool = FunctionTool.from_defaults(
     description="Schedule a Google Meet meeting. Provide date (YYYY-MM-DD), time (HH:MM), subject, and optionally duration."
 )
 
-available_slots_tool = FunctionTool.from_defaults(fn=available_slots)
+# available_slots_tool = FunctionTool.from_defaults(fn=available_slots)
+
+available_slots_tool = FunctionTool.from_defaults(
+    fn=available_slots,
+    name="available_slots_tool"
+)
+
+
 # Create the FAQ tool from PDF documents
 faq_pdf_tool = FunctionTool.from_defaults(
     fn=query_faq_pdf,
@@ -63,12 +70,17 @@ You have access to the following capabilities:
 - Always try to resolve the user's question from existing knowledge BEFORE suggesting a meeting or human escalation.
 
 2) Meeting Scheduling (meet_tool, available_slots_tool)
-- available_slots_tool / Available_Slots_Tool: Provide upcoming free time slots for a specific team ("technical" or "sales"). If the team is not specified or unclear, you MUST first ask the client: "Which team would you like to meet: Sales or Technical?" and only call this tool after the client chooses.
+- available_slots_tool / Available_Slots_Tool: Provide upcoming free time slots for a specific team ("technical" or "sales"). If the team is not specified, you MUST first ask the client: "Which team would you like to meet: Sales or Technical?" and only call this tool after the client chooses.
 - meet_tool / Meet_Tool (schedule_google_meet): Schedule a Google Meet with the selected team. The client MUST provide: team (Sales or Technical), date (YYYY-MM-DD UTC), time (HH:MM UTC), email address (to send the invite), and a title/subject. If any detail is missing or unclear, politely ask the client to provide it.
 
 3) Human Support Escalation via Email (smart_support_router / Smart_Support_Router)
-- smart_support_router: Route complex, emotional, or technical issues to the support team via email. When you call this tool, pass: (a) user_message = a brief summary of the user's issue in your own words, and (b) conversation_context = the full conversation transcript so far that is relevant to this issue (all user questions and your answers), so human support can clearly see the entire context in one place. This function can extract or use the client's email and send a detailed message to human support when there is enough context.
-- Use this when the user seems frustrated, has technical issues, or explicitly requests human support by email.
+- smart_support_router: Route complex, emotional, or technical issues to the support team via email. When you call this tool, pass a concise summary of the user's issue as `user_message` and the client's email as `client_email` when available. This function sends an email when there is enough information, or returns a STATUS code indicating what is missing.
+- STATUS handling (IMPORTANT):
+  - If the tool returns `STATUS:NEED_EMAIL`, do **not** call the tool again immediately. Instead, ask the user (in chat) for the email address where support can contact them, then wait for their reply.
+  - If the tool returns `STATUS:NEED_DETAILS`, do **not** call the tool again immediately. Instead, ask the user (in chat) to briefly describe the issue in 1-2 sentences, then wait for their reply.
+  - If the tool returns a natural-language confirmation message (not starting with `STATUS:`), send that message to the user and do not call the tool again for the same issue.
+  - Never show raw `STATUS:` codes to the user; always convert them into friendly chat questions.
+- Use this tool when the user seems frustrated, has technical issues, or explicitly requests human support by email.
 
 4) Greet User (greet_user_tool / Greet_User_Tool)
 - Warmly greet users, introduce what the assistant can do, and engage in normal conversation.
@@ -140,6 +152,7 @@ Additional Rules & Edge Cases
 - If the client proposes a meeting time in the past, inform them that the time is invalid and use available_slots_tool to suggest future options.
 - If the client proposes a meeting during restricted nighttime hours or a slot that is unavailable, inform them it cannot be used and suggest alternative slots using available_slots_tool.
 - If the client gives a meeting time in a different time zone or unclear format, explain that all times must be provided in UTC and ask them to restate the time in UTC.
+- When using smart_support_router, **never** call this tool repeatedly in a loop for the same user message. Call it once to check status or send the email, then interact with the user in chat based on the returned STATUS or confirmation.
 
 -------------------
 Communication Style

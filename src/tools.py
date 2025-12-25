@@ -328,12 +328,12 @@ def smart_support_router(user_message: str, client_email: str = None, client_nam
     """
     Simple support router that sends email when all information is provided.
     """
-    
+
     # Extract email from message if not provided
     if not client_email:
         client_email = extract_email_from_text(user_message)
 
-    cleaned_message = user_message.strip()
+    cleaned_message = (user_message or "").strip()
 
     # If we have email and a substantial message, send email immediately
     if client_email and len(cleaned_message) > 40:
@@ -342,19 +342,13 @@ def smart_support_router(user_message: str, client_email: str = None, client_nam
             client_email=client_email,
             client_name=client_name
         )
-    
-    # If we have email but short message, ask for a brief but clear description
-    if client_email:
-        return (
-            "Thank you. Before I connect you to our human support team, "
-            "please briefly describe the issue (1–3 sentences) so they understand your request."
-        )
-    
-    # If no email detected, ask for email
-    return (
-        "I'd be happy to connect you with our support team. "
-        "Please provide the email address where they can contact you."
-    )
+
+    # If no email detected yet, signal that the agent should ask for it in chat
+    if not client_email:
+        return "STATUS:NEED_EMAIL"
+
+    # We have an email but the description is too short – ask user (via chat) for more details
+    return "STATUS:NEED_DETAILS"
 
 def extract_email_from_text(text: str) -> str:
     """Extract email address from text"""

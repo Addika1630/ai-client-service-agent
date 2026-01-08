@@ -10,3 +10,7 @@ google-auth-oauthlib
 google-auth-httplib2
 google-auth
 flask-cors
+pinecone
+llama-index-vector-stores-pinecone
+llama-index-llms-mistralai
+pytesseract

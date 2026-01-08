@@ -1,5 +1,6 @@
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.groq import Groq
+from llama_index.llms.mistralai import MistralAI
 
 import os
 
@@ -12,7 +13,7 @@ class Generators:
         Args:
             model (str): The name of the model to use. Defaults to "llama-3.3-70b-versatile".
         """
-        self.llm = Groq(model=model, api_key=os.environ['GROQ_API_KEY'], temperature=0)
+        self.llm = MistralAI(model="mistral-large-latest", api_key=os.environ['MISTRAL_API_KEY'], temperature=0)
 
     def get_llm(self):
         """

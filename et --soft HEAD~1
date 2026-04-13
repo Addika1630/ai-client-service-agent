@@ -1,0 +1,18 @@
+[33mcdf4423[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mdevelopment[m[33m)[m feat: CBE AI Agent
+[33ma1f14cf[m[33m ([m[1;31morigin/feature/ai-agent-core2[m[33m, [m[1;32mfeature/ai-agent-core2[m[33m)[m feat (Vector Database): Add VD and FAQs
+[33m5de96d8[m[33m ([m[1;31morigin/feature/ai-agent-core[m[33m, [m[1;32mfeature/ai-agent-core[m[33m)[m feat (AI Agent): Add another email schedule team
+[33m4725370[m feat (Calendar): Add extra calendar to schedule a meeting
+[33m6866ac5[m feat (Calendar): Add extra calendar to schedule a meeting
+[33m7af03eb[m feat(format): Add formatting to the output
+[33m0778061[m feat(UI): Add front end
+[33m7749f4f[m feat(AI agent): Feat Email Available Slots
+[33m9d0df0a[m feat(Available Slots): Add available time slots
+[33m86cc17c[m feat(AI agent): Add schedule meeting
+[33m20267cf[m feat(AI Agent): Initialize Agentic Chatbot
+[33mb4eaf46[m feat(AI Agent): Initialize Agentic Chatbot
+[33m3d05b80[m feat(AI Agent): Initialize Agentic Chatbot
+[33m588c442[m feat(ai-agent): Initialize ai agent core
+[33mcbea279[m Merge branch 'main' of https://github.com/Addika1630/ai-client-service-agent into feature/ai-agent-core
+[33mc0f6ada[m feat(ai-agent): initialize AI agent
+[33m1049d3b[m[33m ([m[1;32mmain[m[33m)[m First test commit
+[33me5e4568[m feat: AI agent

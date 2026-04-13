@@ -14,3 +14,4 @@ pinecone
 llama-index-vector-stores-pinecone
 llama-index-llms-mistralai
 pytesseract
+requests

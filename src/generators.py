@@ -13,7 +13,7 @@ class Generators:
         Args:
             model (str): The name of the model to use. Defaults to "llama-3.3-70b-versatile".
         """
-        self.llm = MistralAI(model="mistral-large-latest", api_key=os.environ['MISTRAL_API_KEY'], temperature=0)
+        self.llm = MistralAI(model="mistral-large-latest", api_key=os.environ['MISTRAL_API_KEY'], temperature=0, max_tokens=16000)
 
     def get_llm(self):
         """
@@ -22,3 +22,5 @@ class Generators:
         :return: The language model instance used by the Generators class.
         """
         return self.llm
+
+
